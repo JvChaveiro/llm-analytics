@@ -1,0 +1,31 @@
+# Ambiente Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# Dados (podem ser grandes ou sensíveis)
+data/raw/
+data/processed/
+*.csv
+*.xlsx
+*.parquet
+
+# Modelos LLM (ficam no ~/.ollama, não aqui)
+*.gguf
+*.bin
+*.safetensors
+
+# Outputs pesados
+outputs/*.pdf
+outputs/*.html
+
+# Editores
+.vscode/settings.json
+.idea/
+*.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
