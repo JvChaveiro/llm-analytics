@@ -1,0 +1,25 @@
+# ============================================================
+# requirements.txt
+# Instalar: pip install -r requirements.txt
+# ============================================================
+
+# ─── LLM ──────────────────────────────────────────────────────
+ollama>=0.4.0           # SDK oficial para Ollama local
+groq>=0.13.0            # API Groq (modelos rápidos na nuvem)
+
+# ─── BANCO DE DADOS ─────────────────────────────────────────
+sqlalchemy>=2.0.0       # ORM e engine de conexão (dw, geo)
+pymysql>=1.1.0          # Driver MySQL para SQLAlchemy
+duckdb>=1.0.0           # Banco local para análise rápida de arquivos
+
+# ─── ANÁLISE DE DADOS ────────────────────────────────────────
+pandas>=2.2.0           # Manipulação de dados (principal)
+polars>=1.0.0           # Alternativa ao pandas — mais rápido em grandes volumes
+openpyxl>=3.1.0        # Leitura/escrita de arquivos Excel (.xlsx)
+
+# ─── AMBIENTE E CONFIGURAÇÃO ─────────────────────────────────
+python-dotenv>=1.0.0    # Carrega variáveis do .env
+
+# ─── NOTEBOOKS ─────────────────────────────────────────────
+jupyter>=1.1.0          # Ambiente de notebooks
+ipykernel>=6.29.0       # Kernel Python para Jupyter
