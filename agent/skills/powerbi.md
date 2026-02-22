@@ -1,5 +1,6 @@
 # SKILL: powerbi
 # Carregue esta skill para duvidas sobre DAX, modelagem e otimizacao de Power BI.
+# Nomenclatura segue o padrao oficial TBDC (Definicoes-e-Documentacoes.md)
 
 ---
 
@@ -12,38 +13,111 @@ Se a pergunta sobre DAX parecer complicada, questione se o modelo de dados esta 
 
 ## Prioridades de trabalho
 1. Modelo de dados correto (estrela, sem muitos-para-muitos desnecessarios)
-2. DAX simples e legivel
+2. DAX simples e legivel seguindo o padrao TBDC
 3. Performance do relatorio
 4. Visual e UX
 
 ---
 
-## Padroes de DAX
+## Nomenclatura — Padrao TBDC
 
-### Nomenclatura de medidas
-- Prefixo pelo tipo: [$ Receita Total], [# Qtd Clientes], [% Margem], [D. Data Maxima]
-- Nunca nomear medida igual a coluna existente
-- Medidas auxiliares (nao exibidas) com prefixo underline: [_Base Calculo]
-
-### Estrutura de medidas complexas
-```dax
-Receita YTD =
-VAR DataMaxima = MAX ( dCalendario[Data] )
-VAR Resultado =
-    CALCULATE (
-        [$ Receita Total],
-        DATESYTD ( dCalendario[Data] )
-    )
-RETURN
-    IF ( ISBLANK ( Resultado ), 0, Resultado )
+### Estrutura obrigatoria
+```
+<Block>__<Element>--<Modifier>
 ```
 
-### Boas praticas
-- Sempre usar variaveis (VAR) em medidas com mais de uma etapa
-- Evitar FILTER quando CALCULATETABLE resolve
-- Preferir relacionamentos a LOOKUPVALUE quando possivel
-- DIVIDE(numerador, denominador, 0) no lugar de divisao direta
-- Testar medidas com ISBLANK antes de exibir
+- **Block** — entidade principal ou metrica base; sempre em camelCase e em ingles
+- **Element** — tipo de calculo ou natureza do retorno (obrigatorio)
+- **Modifier** — filtro ou condicao aplicada (opcional); maximo de 2 por medida
+- Quando nao houver modifier: `<Block>__<Element>`
+- Todas as medidas armazenadas na tabela `measure`
+- Arquivos .pbix/.pbip: `<Empresa>__<Foco do painel>` (unica excecao para portugues e o foco)
+
+### Elements disponíveis
+
+#### Numericos — agregacao
+| Calculo           | Element  | Exemplo                  |
+|-------------------|----------|--------------------------|
+| Media             | `avg`    | `evaluationValue__avg`   |
+| Soma              | `sum`    | `orderValue__sum`        |
+| Contagem simples  | `count`  | `status__count`          |
+| Contagem distinta | `countd` | `clientId__countd`       |
+| Percentual        | `pct`    | `trialNk__pct`           |
+
+#### Nao-numericos — natureza do retorno
+| Natureza                                        | Element | Exemplo                  |
+|-------------------------------------------------|---------|--------------------------|
+| String (label, tooltip, titulo dinamico)        | `text`  | `statusRTV__text`        |
+| Booleano (visibilidade, formatacao condicional) | `flag`  | `clientStrategic__flag`  |
+| URL ou SVG (imagens dinamicas)                  | `img`   | `statusIcon__img`        |
+
+### Modifiers disponíveis
+| Significado        | Modifier | Operador | Exemplo                         |
+|--------------------|----------|----------|---------------------------------|
+| Maior que          | `gt`     | `>`      | `evaluationValue__avg--gt0`     |
+| Menor que          | `lt`     | `<`      | `orderValue__sum--lt1000`       |
+| Maior ou igual     | `gte`    | `>=`     | `status__count--gte10`          |
+| Menor ou igual     | `lte`    | `<=`     | `clientId__count--lte50`        |
+| Igual a            | `eq`     | `=`      | `clientId__countd--eqAprovado`  |
+| Diferente de       | `ne`     | `<>`     | `status__count--neCancelado`    |
+
+### Regras de modifier
+- Limite de 2 modifiers por medida
+- Sem heranca de modifier: nao replique o modifier de uma medida referenciada, a menos que ele seja parte definidora do resultado
+- Se precisar de mais de 2 modifiers, renomeie o Block para ser mais descritivo
+
+---
+
+## Variaveis internas (VAR)
+
+Variaveis dentro de medidas seguem a mesma estrutura, mas com `_` no lugar de `--`
+(pois `--` comenta a linha em DAX):
+
+```
+<Block>__<Element>_<Modifier>
+```
+
+Exemplo:
+```dax
+VAR salesAmount__sum_eqStrategic = CALCULATE( [salesAmount__sum], ... )
+```
+
+---
+
+## Documentacao interna de medidas
+
+Obrigatoria quando a medida tem mais de 1 variavel OU referencia mais de 2 outras medidas.
+Medidas simples (SUM, DISTINCTCOUNT, CALCULATE com filtro direto) nao requerem cabecalho.
+
+Estrutura:
+```dax
+/*
+  Descricao: <descricao breve do que a medida representa>
+  Dependencias: <lista de medidas referenciadas>
+*/
+nomeDaMedida__element =
+    ...
+```
+
+Exemplo completo:
+```dax
+/*
+  Descricao: % de agendamentos concluidos sobre o total programado
+  Dependencias: scheduleDone__countd, scheduleProgrammed__countd
+*/
+scheduleDoneProgrammed__pct =
+    DIVIDE(
+        [scheduleDone__countd],
+        [scheduleProgrammed__countd]
+    )
+```
+
+---
+
+## Colunas calculadas
+
+- Seguem o mesmo padrao de nomenclatura: `<Block>__<Element>--<Modifier>`
+- Devem ser agrupadas em pasta dedicada dentro da tabela: `calculated columns`
 
 ---
 
@@ -61,13 +135,13 @@ RETURN
 dCalendario =
 ADDCOLUMNS (
     CALENDAR ( DATE(2020,1,1), DATE(2030,12,31) ),
-    "Ano",        YEAR ( [Date] ),
-    "Mes",        MONTH ( [Date] ),
-    "Nome Mes",   FORMAT ( [Date], "MMMM", "pt-BR" ),
-    "Trimestre",  "T" & QUARTER ( [Date] ),
-    "Ano-Mes",    FORMAT ( [Date], "YYYY-MM" ),
-    "Dia Semana", WEEKDAY ( [Date], 2 ),
-    "e Final Semana", IF ( WEEKDAY([Date],2) >= 6, 1, 0 )
+    "Ano",          YEAR ( [Date] ),
+    "Mes",          MONTH ( [Date] ),
+    "nomeMes",      FORMAT ( [Date], "MMMM", "pt-BR" ),
+    "trimestre",    "T" & QUARTER ( [Date] ),
+    "yearMonth",    FORMAT ( [Date], "YYYY-MM" ),
+    "diaSemana",    WEEKDAY ( [Date], 2 ),
+    "isWeekend",    IF ( WEEKDAY([Date],2) >= 6, 1, 0 )
 )
 ```
 
@@ -75,18 +149,15 @@ ADDCOLUMNS (
 
 ## Otimizacao de performance
 
-### Reducao de tamanho do modelo
 - Remover colunas nao usadas antes de carregar (Power Query)
 - Tipos de dados corretos: inteiro para IDs, decimal fixo para valores monetarios
-- Evitar colunas calculadas quando medida resolve — coluna calculada fica no modelo, medida e calculada sob demanda
-
-### Performance de medidas
+- Evitar colunas calculadas quando medida resolve
 - Evitar iteradores (SUMX, AVERAGEX) em tabelas grandes sem necessidade
-- Context transition (CALCULATE dentro de SUMX) e caro - usar com consciencia
-- Medir com Performance Analyzer antes de otimizar — nao otimize o que nao e gargalo
+- Context transition (CALCULATE dentro de SUMX) e caro — usar com consciencia
+- Medir com Performance Analyzer antes de otimizar
 
 ### Comportamento ao diagnosticar
-1. Pergunte sobre o tamanho da tabela fato (linhas) e numero de visuais na pagina
+1. Pergunte sobre o tamanho da tabela fato e numero de visuais na pagina
 2. Identifique se o problema e no modelo, no DAX ou no visual
 3. Sugira a solucao mais simples primeiro
 
@@ -94,21 +165,24 @@ ADDCOLUMNS (
 
 ## Integracao com este projeto
 
-- Dados do DW (MySQL dw_tbdc_prd) podem ser exportados para Power BI via:
+- Dados do DW (MySQL dw_tbdc_prd) exportados para Power BI via:
   - Conector MySQL nativo do Power BI
   - CSV/Excel gerado por script Python (scripts/data_analysis.py)
   - DirectQuery para dados em tempo real (cuidado com performance)
-- Para explorar dados antes de modelar no Power BI, usar DuckDB ou pandas localmente
+- Para explorar dados antes de modelar, usar DuckDB ou pandas localmente
 
 ---
 
-## Antipadroes - aponte sempre que encontrar
+## Antipadroes — aponte sempre que encontrar
 
 | Antipadrao | Problema | Alternativa |
 |---|---|---|
+| Nomenclatura fora do padrao TBDC | Inconsistencia no modelo | Aplicar `<Block>__<Element>--<Modifier>` |
+| Medida fora da tabela `measure` | Dificulta manutencao | Mover para tabela measure |
 | Relacionamento muitos-para-muitos | Ambiguidade e lentidao | Tabela ponte ou revisao do modelo |
-| Medida sem VAR em logica complexa | Dificil de debugar | Decompor em VARs |
+| Medida complexa sem cabecalho `/* */` | Dificil de entender e manter | Adicionar Descricao e Dependencias |
 | Coluna calculada para agregacao | Fica materializada no modelo | Usar medida |
-| FILTER(Tabela, condicao) | Escaneia a tabela inteira | Usar KEEPFILTERS ou CALCULATETABLE |
-| Mais de 8 visuais por pagina | Lentidao de renderizacao | Dividir em paginas ou usar bookmarks |
-| Hierarquia de data sem tabela calendario | Inteligencia de tempo quebrada | Criar dCalendario |
+| FILTER(Tabela, condicao) | Escaneia tabela inteira | KEEPFILTERS ou CALCULATETABLE |
+| Mais de 8 visuais por pagina | Lentidao de renderizacao | Dividir em paginas ou bookmarks |
+| Hierarquia de data sem dCalendario | Inteligencia de tempo quebrada | Criar dCalendario |
+| Mais de 2 modifiers no nome | Nome confuso e extenso | Renomear o Block para ser mais descritivo |
